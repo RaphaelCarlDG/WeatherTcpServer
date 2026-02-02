@@ -15,6 +15,8 @@ public sealed class TcpJsonServer : IDisposable
     private Task? _acceptLoop;
     private readonly HashSet<Task> _clientTasks = new HashSet<Task>();
     private readonly object _clientTasksLock = new object();
+    private readonly Dictionary<string, ClientInfo> _connectedClients = new();
+    private readonly object _clientsLock = new object();
 
     public bool IsRunning { get; private set; }
 
@@ -23,11 +25,27 @@ public sealed class TcpJsonServer : IDisposable
     public event Action<HeatIndexReading>? HeatIndexReceived;
     public event Action<HydroReading>? HydroReceived;
     public event Action<GasReading>? GasReceived;
+    public event Action? ClientsChanged;
 
     // ?? Known prefixes, matching the Python script's line.startsWith() checks ??
     private const string PrefixWater = "water_level:";
     private const string PrefixMq2 = "mq2:";
     private const string PrefixBme = "bme280:";
+
+    public class ClientInfo
+    {
+        public string Address { get; set; } = string.Empty;
+        public DateTime ConnectedAt { get; set; }
+        public int? LastDeviceId { get; set; }
+    }
+
+    public IReadOnlyDictionary<string, ClientInfo> GetConnectedClients()
+    {
+        lock (_clientsLock)
+        {
+            return new Dictionary<string, ClientInfo>(_connectedClients);
+        }
+    }
 
     public void Start(IPAddress ip, int port)
     {
@@ -122,6 +140,12 @@ public sealed class TcpJsonServer : IDisposable
         string remote = client.Client.RemoteEndPoint?.ToString() ?? "unknown";
         Log?.Invoke($"Client connected: {remote}");
 
+        lock (_clientsLock)
+        {
+            _connectedClients[remote] = new ClientInfo { Address = remote, ConnectedAt = DateTime.Now };
+        }
+        ClientsChanged?.Invoke();
+
         try
         {
             await using NetworkStream ns = client.GetStream();
@@ -155,6 +179,11 @@ public sealed class TcpJsonServer : IDisposable
         finally
         {
             try { client.Close(); } catch { }
+            lock (_clientsLock)
+            {
+                _connectedClients.Remove(remote);
+            }
+            ClientsChanged?.Invoke();
             Log?.Invoke($"Client disconnected: {remote}");
         }
     }
@@ -196,6 +225,14 @@ public sealed class TcpJsonServer : IDisposable
                     WaterLevel = (int)root.GetProperty("WaterLevel").GetInt64()
                 };
 
+                lock (_clientsLock)
+                {
+                    if (_connectedClients.TryGetValue(clientAddress, out var client))
+                    {
+                        client.LastDeviceId = reading.DeviceId;
+                    }
+                }
+
                 Log?.Invoke($"Hydro reading parsed: Level={reading.WaterLevel}, DeviceId={reading.DeviceId}");
                 HydroReceived?.Invoke(reading);
                 return;
@@ -212,6 +249,14 @@ public sealed class TcpJsonServer : IDisposable
                     DeviceId = (int)root.GetProperty("DeviceId").GetInt64(),
                     GasDetected = root.GetProperty("GasDetected").GetBoolean()
                 };
+
+                lock (_clientsLock)
+                {
+                    if (_connectedClients.TryGetValue(clientAddress, out var client))
+                    {
+                        client.LastDeviceId = reading.DeviceId;
+                    }
+                }
 
                 Log?.Invoke($"Gas reading parsed: Detected={reading.GasDetected}, DeviceId={reading.DeviceId}");
                 GasReceived?.Invoke(reading);
@@ -230,6 +275,14 @@ public sealed class TcpJsonServer : IDisposable
 
                 int deviceId = (int)root.GetProperty("DeviceId").GetInt64();
 
+                lock (_clientsLock)
+                {
+                    if (_connectedClients.TryGetValue(clientAddress, out var client))
+                    {
+                        client.LastDeviceId = deviceId;
+                    }
+                }
+
                 // Always emit the weather reading
                 var weather = new WeatherReading
                 {
@@ -241,7 +294,7 @@ public sealed class TcpJsonServer : IDisposable
                     DewPoint = root.GetProperty("DewPoint").GetDouble()
                 };
 
-                Log?.Invoke($"Weather reading parsed: Temp={weather.Temperature}°C, DeviceId={weather.DeviceId}");
+                Log?.Invoke($"Weather reading parsed: Temp={weather.Temperature}ï¿½C, DeviceId={weather.DeviceId}");
                 WeatherReceived?.Invoke(weather);
 
                 // Conditionally emit the heat-index reading (same guard as Python)
@@ -273,7 +326,7 @@ public sealed class TcpJsonServer : IDisposable
         }
         catch (Exception ex)
         {
-            Log?.Invoke($"Processing error from {clientAddress}: {ex.GetType().Name} – {ex.Message}");
+            Log?.Invoke($"Processing error from {clientAddress}: {ex.GetType().Name} ï¿½ {ex.Message}");
         }
     }
 

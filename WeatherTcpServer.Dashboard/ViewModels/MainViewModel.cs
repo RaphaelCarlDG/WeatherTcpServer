@@ -21,43 +21,100 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private HeatIndexReading? _heatIndex;
     private HydroReading? _hydro;
     private GasReading? _gas;
+    private int? _selectedDeviceId;
+    private bool _isDarkMode = false;
     private bool _disposed;
 
     public MainViewModel()
     {
         _apiService = new WeatherApiService();
         Logs = new ObservableCollection<string>();
+        ConnectedClients = new ObservableCollection<ClientDisplay>();
+        DeviceIds = new ObservableCollection<int?> { null }; // null means "All Devices"
         StartCommand = new RelayCommand(StartServer, () => !IsRunning);
         StopCommand = new RelayCommand(() => _ = StopServerAsync(), () => IsRunning);
 
         _server.Log += msg => AddLog(msg);
+        _server.ClientsChanged += () => UpdateClientsList();
 
         _server.WeatherReceived += async model =>
         {
-            Application.Current.Dispatcher.Invoke(() => Weather = model);
+            var app = Application.Current;
+            if (app?.Dispatcher != null)
+            {
+                app.Dispatcher.Invoke(() =>
+                {
+                    AddDeviceIdIfNew(model.DeviceId);
+                    if (_selectedDeviceId == null || _selectedDeviceId == model.DeviceId)
+                    {
+                        Weather = model;
+                    }
+                });
+            }
             await PostWeatherReadingAsync(model);
         };
 
         _server.HeatIndexReceived += async model =>
         {
-            Application.Current.Dispatcher.Invoke(() => HeatIndex = model);
+            var app = Application.Current;
+            if (app?.Dispatcher != null)
+            {
+                app.Dispatcher.Invoke(() =>
+                {
+                    AddDeviceIdIfNew(model.DeviceId);
+                    if (_selectedDeviceId == null || _selectedDeviceId == model.DeviceId)
+                    {
+                        HeatIndex = model;
+                    }
+                });
+            }
             await PostHeatIndexReadingAsync(model);
         };
 
         _server.HydroReceived += async model =>
         {
-            Application.Current.Dispatcher.Invoke(() => Hydro = model);
+            var app = Application.Current;
+            if (app?.Dispatcher != null)
+            {
+                app.Dispatcher.Invoke(() =>
+                {
+                    AddDeviceIdIfNew(model.DeviceId);
+                    if (_selectedDeviceId == null || _selectedDeviceId == model.DeviceId)
+                    {
+                        Hydro = model;
+                    }
+                });
+            }
             await PostHydroReadingAsync(model);
         };
 
         _server.GasReceived += async model =>
         {
-            Application.Current.Dispatcher.Invoke(() => Gas = model);
+            var app = Application.Current;
+            if (app?.Dispatcher != null)
+            {
+                app.Dispatcher.Invoke(() =>
+                {
+                    AddDeviceIdIfNew(model.DeviceId);
+                    if (_selectedDeviceId == null || _selectedDeviceId == model.DeviceId)
+                    {
+                        Gas = model;
+                    }
+                });
+            }
             await PostGasReadingAsync(model);
         };
 
         AddLog("ViewModel initialized");
         AddLog($"API Base URL: {_apiService.GetType().Name} created");
+    }
+
+    public class ClientDisplay
+    {
+        public string Address { get; set; } = string.Empty;
+        public DateTime ConnectedAt { get; set; }
+        public int? DeviceId { get; set; }
+        public string ConnectedTime => (DateTime.Now - ConnectedAt).ToString(@"hh\:mm\:ss");
     }
 
     public string IpAddress
@@ -109,15 +166,63 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _gas, value);
     }
 
+    public int? SelectedDeviceId
+    {
+        get => _selectedDeviceId;
+        set => SetProperty(ref _selectedDeviceId, value);
+    }
+
+    public bool IsDarkMode
+    {
+        get => _isDarkMode;
+        set => SetProperty(ref _isDarkMode, value);
+    }
+
     public ObservableCollection<string> Logs { get; }
+    public ObservableCollection<ClientDisplay> ConnectedClients { get; }
+    public ObservableCollection<int?> DeviceIds { get; }
 
     public RelayCommand StartCommand { get; }
     public RelayCommand StopCommand { get; }
 
+    private void UpdateClientsList()
+    {
+        var app = Application.Current;
+        if (app?.Dispatcher != null)
+        {
+            app.Dispatcher.Invoke(() =>
+            {
+                var clients = _server.GetConnectedClients();
+                ConnectedClients.Clear();
+                foreach (var kvp in clients)
+                {
+                    ConnectedClients.Add(new ClientDisplay
+                    {
+                        Address = kvp.Value.Address,
+                        ConnectedAt = kvp.Value.ConnectedAt,
+                        DeviceId = kvp.Value.LastDeviceId
+                    });
+                }
+            });
+        }
+    }
+
+    private void AddDeviceIdIfNew(int deviceId)
+    {
+        if (!DeviceIds.Contains(deviceId))
+        {
+            DeviceIds.Add(deviceId);
+        }
+    }
+
     private void AddLog(string message)
     {
-        Application.Current.Dispatcher.Invoke(() =>
-            Logs.Insert(0, $"[{DateTime.Now:HH:mm:ss}] {message}"));
+        var app = Application.Current;
+        if (app?.Dispatcher != null)
+        {
+            app.Dispatcher.Invoke(() =>
+                Logs.Insert(0, $"[{DateTime.Now:HH:mm:ss}] {message}"));
+        }
     }
 
     private async Task PostWeatherReadingAsync(WeatherReading reading)
@@ -130,7 +235,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var success = await _apiService.PostWeatherReadingAsync(reading);
             if (success)
             {
-                AddLog($"[OK] Weather reading posted (Temp: {reading.Temperature}°C, Humidity: {reading.Humidity}%)");
+                AddLog($"[OK] Weather reading posted (Temp: {reading.Temperature}ï¿½C, Humidity: {reading.Humidity}%)");
             }
             else
             {
@@ -166,7 +271,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var success = await _apiService.PostHeatIndexReadingAsync(reading);
             if (success)
             {
-                AddLog($"[OK] Heat index reading posted (Value: {reading.HeatIndex}°C)");
+                AddLog($"[OK] Heat index reading posted (Value: {reading.HeatIndex}ï¿½C)");
             }
             else
             {
@@ -309,7 +414,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            Application.Current.Dispatcher.Invoke(() => IsRunning = false);
+            var app = Application.Current;
+            if (app?.Dispatcher != null)
+            {
+                app.Dispatcher.Invoke(() => IsRunning = false);
+            }
+            else
+            {
+                IsRunning = false;
+            }
         }
     }
 
