@@ -19,6 +19,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string _ipAddress = "0.0.0.0";
     private int _port = 46800;
     private bool _isRunning;
+    private WeatherReading? _weather;
+    private HeatIndexReading? _heatIndex;
+    private HydroReading? _hydro;
+    private GasReading? _gas;
+    private int? _selectedDeviceId;
     private Weather? _weather;
     private PerceivedWeather? _heatIndex;
     private Hydro? _hydro;
@@ -43,14 +48,30 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _signalRService = new SignalRService(signalRUrl);
 
         Logs = new ObservableCollection<string>();
+        ConnectedClients = new ObservableCollection<ClientDisplay>();
+        DeviceIds = new ObservableCollection<int?> { null }; // null means "All Devices"
         StartCommand = new RelayCommand(StartServer, () => !IsRunning);
         StopCommand = new RelayCommand(() => _ = StopServerAsync(), () => IsRunning);
 
         _server.Log += msg => AddLog(msg);
+        _server.ClientsChanged += () => UpdateClientsList();
         _signalRService.Log += msg => AddLog(msg);
 
         _server.WeatherReceived += async model =>
         {
+            var app = Application.Current;
+            if (app?.Dispatcher != null)
+            {
+                app.Dispatcher.Invoke(() =>
+                {
+                    AddDeviceIdIfNew(model.DeviceId);
+                    if (_selectedDeviceId == null || _selectedDeviceId == model.DeviceId)
+                    {
+                        Weather = model;
+                    }
+                });
+            }
+            await PostWeatherReadingAsync(model);
             Application.Current.Dispatcher.Invoke(() => Weather = model);
             await SaveWeatherReadingAsync(model);
             await BroadcastWeatherAsync(model);
@@ -58,6 +79,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _server.HeatIndexReceived += async model =>
         {
+            var app = Application.Current;
+            if (app?.Dispatcher != null)
+            {
+                app.Dispatcher.Invoke(() =>
+                {
+                    AddDeviceIdIfNew(model.DeviceId);
+                    if (_selectedDeviceId == null || _selectedDeviceId == model.DeviceId)
+                    {
+                        HeatIndex = model;
+                    }
+                });
+            }
+            await PostHeatIndexReadingAsync(model);
             Application.Current.Dispatcher.Invoke(() => HeatIndex = model);
             await SaveHeatIndexReadingAsync(model);
             await BroadcastHeatIndexAsync(model);
@@ -65,6 +99,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _server.HydroReceived += async model =>
         {
+            var app = Application.Current;
+            if (app?.Dispatcher != null)
+            {
+                app.Dispatcher.Invoke(() =>
+                {
+                    AddDeviceIdIfNew(model.DeviceId);
+                    if (_selectedDeviceId == null || _selectedDeviceId == model.DeviceId)
+                    {
+                        Hydro = model;
+                    }
+                });
+            }
+            await PostHydroReadingAsync(model);
             Application.Current.Dispatcher.Invoke(() => Hydro = model);
             await SaveHydroReadingAsync(model);
             await BroadcastHydroAsync(model);
@@ -72,6 +119,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _server.GasReceived += async model =>
         {
+            var app = Application.Current;
+            if (app?.Dispatcher != null)
+            {
+                app.Dispatcher.Invoke(() =>
+                {
+                    AddDeviceIdIfNew(model.DeviceId);
+                    if (_selectedDeviceId == null || _selectedDeviceId == model.DeviceId)
+                    {
+                        Gas = model;
+                    }
+                });
+            }
+            await PostGasReadingAsync(model);
             Application.Current.Dispatcher.Invoke(() => Gas = model);
             await SaveGasReadingAsync(model);
             await BroadcastGasAsync(model);
@@ -82,6 +142,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         // Start SignalR connection
         _ = InitializeSignalRAsync();
+    }
+
+    public class ClientDisplay
+    {
+        public string Address { get; set; } = string.Empty;
+        public DateTime ConnectedAt { get; set; }
+        public int? DeviceId { get; set; }
+        public string ConnectedTime => (DateTime.Now - ConnectedAt).ToString(@"hh\:mm\:ss");
     }
 
     private async Task InitializeSignalRAsync()
@@ -146,15 +214,57 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _gas, value);
     }
 
+    public int? SelectedDeviceId
+    {
+        get => _selectedDeviceId;
+        set => SetProperty(ref _selectedDeviceId, value);
+    }
+
     public ObservableCollection<string> Logs { get; }
+    public ObservableCollection<ClientDisplay> ConnectedClients { get; }
+    public ObservableCollection<int?> DeviceIds { get; }
 
     public RelayCommand StartCommand { get; }
     public RelayCommand StopCommand { get; }
 
+    private void UpdateClientsList()
+    {
+        var app = Application.Current;
+        if (app?.Dispatcher != null)
+        {
+            app.Dispatcher.Invoke(() =>
+            {
+                var clients = _server.GetConnectedClients();
+                ConnectedClients.Clear();
+                foreach (var kvp in clients)
+                {
+                    ConnectedClients.Add(new ClientDisplay
+                    {
+                        Address = kvp.Value.Address,
+                        ConnectedAt = kvp.Value.ConnectedAt,
+                        DeviceId = kvp.Value.LastDeviceId
+                    });
+                }
+            });
+        }
+    }
+
+    private void AddDeviceIdIfNew(int deviceId)
+    {
+        if (!DeviceIds.Contains(deviceId))
+        {
+            DeviceIds.Add(deviceId);
+        }
+    }
+
     private void AddLog(string message)
     {
-        Application.Current.Dispatcher.Invoke(() =>
-            Logs.Insert(0, $"[{DateTime.Now:HH:mm:ss}] {message}"));
+        var app = Application.Current;
+        if (app?.Dispatcher != null)
+        {
+            app.Dispatcher.Invoke(() =>
+                Logs.Insert(0, $"[{DateTime.Now:HH:mm:ss}] {message}"));
+        }
     }
 
     private async Task SaveWeatherReadingAsync(Weather reading)
@@ -167,7 +277,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var success = await _dbService.SaveWeatherReadingAsync(reading);
             if (success)
             {
-                AddLog($"[OK] Weather reading saved (Temp: {reading.Temperature}°C, Humidity: {reading.Humidity}%)");
+                AddLog($"[OK] Weather reading saved (Temp: {reading.Temperature}Â°C, Humidity: {reading.Humidity}%)");
             }
             else
             {
@@ -219,7 +329,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var success = await _dbService.SaveHeatIndexReadingAsync(reading);
             if (success)
             {
-                AddLog($"[OK] Heat index reading saved (Value: {reading.HeatIndex}°C)");
+                AddLog($"[OK] Heat index reading saved (Value: {reading.HeatIndex}Â°C)");
             }
             else
             {
@@ -411,7 +521,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            Application.Current.Dispatcher.Invoke(() => IsRunning = false);
+            var app = Application.Current;
+            if (app?.Dispatcher != null)
+            {
+                app.Dispatcher.Invoke(() => IsRunning = false);
+            }
+            else
+            {
+                IsRunning = false;
+            }
         }
     }
 

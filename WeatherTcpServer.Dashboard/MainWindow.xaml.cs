@@ -19,6 +19,15 @@ public partial class MainWindow : Window
         DataContext = _vm;
     }
 
+    private void SettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var settingsWindow = new SettingsWindow(_vm)
+        {
+            Owner = this
+        };
+        settingsWindow.ShowDialog();
+    }
+
     protected override void OnClosing(CancelEventArgs e)
     {
         _ = _vm.ShutdownAsync();

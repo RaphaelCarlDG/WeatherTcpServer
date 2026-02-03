@@ -5,215 +5,307 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WeatherTcpServer.Dashboard"
         mc:Ignorable="d"
-        Title="Weather TCP Server Dashboard" Height="720" Width="1100" MinHeight="600" MinWidth="900">
+        Title="Weather TCP Server Dashboard" Height="800" Width="1600" MinHeight="700" MinWidth="1200"
+        Background="{StaticResource AppBgBrush}">
 
-    <Grid Margin="16">
+    <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="16" />
+            <RowDefinition Height="24" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="{StaticResource PanelBrush}" CornerRadius="16" Padding="16" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+        <!-- Header Section -->
+        <Border Grid.Row="0" Background="{StaticResource PanelBrush}" CornerRadius="16" Padding="28" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="12" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-                <Grid Grid.Row="0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Weather TCP Server" FontSize="26" FontWeight="Bold" />
+                        <TextBlock Text="Real-time sensor data monitoring" Foreground="{StaticResource MutedTextBrush}" FontSize="13" Margin="0,6,0,0" />
+                    </StackPanel>
+                </StackPanel>
 
+                <Border Grid.Column="1" Padding="14,8" CornerRadius="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="Weather TCP Server" FontSize="18" FontWeight="SemiBold" />
-                        <Border Margin="12,0,0,0" Padding="10,4" CornerRadius="999" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
-                            <TextBlock FontWeight="SemiBold">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="STOPPED" />
-                                        <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsRunning}" Value="True">
-                                                <Setter Property="Text" Value="RUNNING" />
-                                                <Setter Property="Foreground" Value="{StaticResource SuccessBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </Border>
+                        <Ellipse Width="12" Height="12" Margin="0,0,10,0">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="{StaticResource DangerBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                            <Setter Property="Fill" Value="{StaticResource SuccessBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock FontWeight="SemiBold" FontSize="13">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="OFFLINE" />
+                                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                            <Setter Property="Text" Value="ONLINE" />
+                                            <Setter Property="Foreground" Value="{StaticResource SuccessBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </StackPanel>
+                </Border>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Content="Start" Width="120" Margin="0,0,10,0" Command="{Binding StartCommand}" />
-                        <Button Content="Stop" Width="120" Style="{StaticResource DangerButton}" Command="{Binding StopCommand}" />
-                    </StackPanel>
-                </Grid>
-
-                <Grid Grid.Row="2">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel Orientation="Vertical">
-                        <TextBlock Text="Bind IP" Foreground="{StaticResource MutedTextBrush}" FontSize="12" />
-                        <TextBox Width="200" Text="{Binding IpAddress, UpdateSourceTrigger=PropertyChanged}" />
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="2" Orientation="Vertical">
-                        <TextBlock Text="Port" Foreground="{StaticResource MutedTextBrush}" FontSize="12" />
-                        <TextBox Width="120" Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}" />
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="4" Orientation="Vertical">
-                        <TextBlock Text="Tip" Foreground="{StaticResource MutedTextBrush}" FontSize="12" />
-                        <TextBlock Text="Send 1 JSON per line (newline-delimited)" />
-                    </StackPanel>
-                </Grid>
+                <Button Grid.Column="3" Width="40" Height="40" Padding="0" Click="SettingsButton_Click">
+                    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE713;" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
             </Grid>
         </Border>
 
+        <!-- Main Content -->
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2*" />
-                <ColumnDefinition Width="16" />
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="2.5*" />
+                <ColumnDefinition Width="24" />
+                <ColumnDefinition Width="1*" />
+                <ColumnDefinition Width="24" />
+                <ColumnDefinition Width="1*" />
             </Grid.ColumnDefinitions>
 
-            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
-                <UniformGrid Columns="2" Rows="2" Margin="0">
-                    <Border Style="{StaticResource CardBorder}" Margin="0,0,12,12">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="10" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="WEATHER" FontWeight="SemiBold" FontSize="16" />
-                                <TextBlock Text="•" Foreground="{StaticResource MutedTextBrush}" Margin="10,0" />
-                                <TextBlock Text="Environmental" Foreground="{StaticResource MutedTextBrush}" />
-                                <TextBlock Text="•" Foreground="{StaticResource MutedTextBrush}" Margin="10,0" />
-                                <TextBlock Text="Device ID: " Foreground="{StaticResource MutedTextBrush}" FontSize="12" />
-                                <TextBlock Text="{Binding Weather.DeviceId, TargetNullValue=-, FallbackValue=-}" Foreground="{StaticResource MutedTextBrush}" FontSize="12" FontWeight="SemiBold" />
-                            </StackPanel>
+            <!-- Data Cards Section -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="16" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
 
-                            <Grid Grid.Row="2">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="Temperature" Foreground="{StaticResource MutedTextBrush}" />
-                                    <TextBlock Text="{Binding Weather.Temperature, TargetNullValue=00.00, StringFormat={}{0:0.00} °C}" FontSize="26" FontWeight="SemiBold" />
-                                    <TextBlock Text="DewPoint" Foreground="{StaticResource MutedTextBrush}" Margin="0,12,0,0" />
-                                    <TextBlock Text="{Binding Weather.DewPoint, TargetNullValue=00.00, StringFormat={}{0:0.00} °C}" FontSize="18" />
+                <!-- Device Selector -->
+                <Border Background="{StaticResource PanelBrush}" CornerRadius="16" Padding="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Select Device:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="14" />
+                        <ComboBox Grid.Column="2" 
+                                ItemsSource="{Binding DeviceIds}" 
+                                SelectedItem="{Binding SelectedDeviceId}" 
+                                Padding="12,10">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock>
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="{Binding StringFormat=Device {0}}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding}" Value="{x:Null}">
+                                                        <Setter Property="Text" Value="All Devices" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </Grid>
+                </Border>
+
+                <!-- Data Cards Grid -->
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                    <UniformGrid Columns="2" Rows="2" Margin="0">
+                        <!-- Weather Card -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,12,12" Padding="20">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="16" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="WEATHER" FontWeight="Bold" FontSize="15" />
+                                        <TextBlock Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,4,0,0">
+                                            <Run Text="Environmental • Device ID: " />
+                                            <Run Text="{Binding Weather.DeviceId, TargetNullValue=-, FallbackValue=-}" />
+                                        </TextBlock>
+                                    </StackPanel>
                                 </StackPanel>
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="Humidity" Foreground="{StaticResource MutedTextBrush}" />
-                                    <TextBlock Text="{Binding Weather.Humidity, TargetNullValue=00.00, StringFormat={}{0:0.00} %}" FontSize="22" FontWeight="SemiBold" />
-                                    <TextBlock Text="Pressure" Foreground="{StaticResource MutedTextBrush}" Margin="0,12,0,0" />
-                                    <TextBlock Text="{Binding Weather.Pressure, TargetNullValue=00.00, StringFormat={}{0:0.00} hPa}" FontSize="18" />
-                                    <TextBlock Text="Altitude" Foreground="{StaticResource MutedTextBrush}" Margin="0,12,0,0" />
-                                    <TextBlock Text="{Binding Weather.Altitude, TargetNullValue=00.00, StringFormat={}{0:0.00} m}" FontSize="18" />
-                                </StackPanel>
+
+                                <Grid Grid.Row="2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Temperature" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,0,0,6" />
+                                        <TextBlock Text="{Binding Weather.Temperature, TargetNullValue=00.00, StringFormat={}{0:0.00}°C}" FontSize="36" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" />
+                                        <TextBlock Text="DewPoint" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,16,0,6" />
+                                        <TextBlock Text="{Binding Weather.DewPoint, TargetNullValue=00.00, StringFormat={}{0:0.00}°C}" FontSize="20" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="Humidity" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,0,0,6" />
+                                        <TextBlock Text="{Binding Weather.Humidity, TargetNullValue=00.00, StringFormat={}{0:0.00}%}" FontSize="32" FontWeight="Bold" Foreground="{StaticResource InfoBrush}" />
+                                        <TextBlock Text="Pressure" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,16,0,6" />
+                                        <TextBlock Text="{Binding Weather.Pressure, TargetNullValue=00.00, StringFormat={}{0:0.00} hPa}" FontSize="18" />
+                                        <TextBlock Text="Altitude" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,10,0,6" />
+                                        <TextBlock Text="{Binding Weather.Altitude, TargetNullValue=00.00, StringFormat={}{0:0.00} m}" FontSize="18" />
+                                    </StackPanel>
+                                </Grid>
                             </Grid>
-                        </Grid>
-                    </Border>
+                        </Border>
 
-                    <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="HEAT INDEX" FontWeight="SemiBold" FontSize="16" />
-                                <TextBlock Text="•" Foreground="{StaticResource MutedTextBrush}" Margin="10,0" />
-                                <TextBlock Text="Comfort" Foreground="{StaticResource MutedTextBrush}" />
-                                <TextBlock Text="•" Foreground="{StaticResource MutedTextBrush}" Margin="10,0" />
-                                <TextBlock Text="Device ID: " Foreground="{StaticResource MutedTextBrush}" FontSize="12" />
-                                <TextBlock Text="{Binding Weather.DeviceId, TargetNullValue=-, FallbackValue=-}" Foreground="{StaticResource MutedTextBrush}" FontSize="12" FontWeight="SemiBold" />
+                        <!-- Heat Index Card -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12" Padding="20">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="HEAT INDEX" FontWeight="Bold" FontSize="15" />
+                                        <TextBlock Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,4,0,0">
+                                            <Run Text="Comfort Level • Device ID: " />
+                                            <Run Text="{Binding HeatIndex.DeviceId, TargetNullValue=-, FallbackValue=-}" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <TextBlock Text="Heat Index" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,20,0,6" />
+                                <TextBlock Text="{Binding HeatIndex.HeatIndex, TargetNullValue=00.00, StringFormat={}{0:0.00}°C}" FontSize="44" FontWeight="Bold" Foreground="{StaticResource WarningBrush}" />
+
+                                <TextBlock Text="Last Updated" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,20,0,6" />
+                                <TextBlock Text="{Binding HeatIndex.ReadingTime, Converter={StaticResource ReadingTimeConverter}}" FontSize="13" />
                             </StackPanel>
+                        </Border>
 
-                            <TextBlock Text="HeatIndex" Foreground="{StaticResource MutedTextBrush}" Margin="0,16,0,0" />
-                            <TextBlock Text="{Binding HeatIndex.HeatIndex, TargetNullValue=00.00, StringFormat={}{0:0.00}}" FontSize="36" FontWeight="SemiBold" />
+                        <!-- Hydro Card -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,12,0" Padding="20">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="HYDRO" FontWeight="Bold" FontSize="15" />
+                                        <TextBlock Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,4,0,0">
+                                            <Run Text="Water Level • Device ID: " />
+                                            <Run Text="{Binding Hydro.DeviceId, TargetNullValue=-, FallbackValue=-}" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </StackPanel>
 
-                            <TextBlock Text="ReadingTime" Foreground="{StaticResource MutedTextBrush}" Margin="0,16,0,0" />
-                            <TextBlock Text="{Binding HeatIndex.ReadingTime, Converter={StaticResource ReadingTimeConverter}}" />
-                        </StackPanel>
-                    </Border>
+                                <TextBlock Text="Water Level" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,20,0,6" />
+                                <TextBlock Text="{Binding Hydro.WaterLevel, TargetNullValue=00}" FontSize="44" FontWeight="Bold" Foreground="{StaticResource InfoBrush}" />
 
-                    <Border Style="{StaticResource CardBorder}" Margin="0,0,12,0">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="HYDRO" FontWeight="SemiBold" FontSize="16" />
-                                <TextBlock Text="•" Foreground="{StaticResource MutedTextBrush}" Margin="10,0" />
-                                <TextBlock Text="Water" Foreground="{StaticResource MutedTextBrush}" />
-                                <TextBlock Text="•" Foreground="{StaticResource MutedTextBrush}" Margin="10,0" />
-                                <TextBlock Text="Device ID: " Foreground="{StaticResource MutedTextBrush}" FontSize="12" />
-                                <TextBlock Text="{Binding Weather.DeviceId, TargetNullValue=-, FallbackValue=-}" Foreground="{StaticResource MutedTextBrush}" FontSize="12" FontWeight="SemiBold" />
+                                <TextBlock Text="Last Updated" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,20,0,6" />
+                                <TextBlock Text="{Binding Hydro.ReadingTime, Converter={StaticResource ReadingTimeConverter}}" FontSize="13" />
                             </StackPanel>
+                        </Border>
 
-                            <TextBlock Text="WaterLevel" Foreground="{StaticResource MutedTextBrush}" Margin="0,16,0,0" />
-                            <TextBlock Text="{Binding Hydro.WaterLevel, TargetNullValue=00}" FontSize="36" FontWeight="SemiBold" />
+                        <!-- Gas Card -->
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,0" Padding="20">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="GAS DETECTION" FontWeight="Bold" FontSize="15" />
+                                        <TextBlock Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,4,0,0">
+                                            <Run Text="Safety Alert • Device ID: " />
+                                            <Run Text="{Binding Gas.DeviceId, TargetNullValue=-, FallbackValue=-}" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </StackPanel>
 
-                            <TextBlock Text="ReadingTime" Foreground="{StaticResource MutedTextBrush}" Margin="0,16,0,0" />
-                            <TextBlock Text="{Binding Hydro.ReadingTime, Converter={StaticResource ReadingTimeConverter}}" />
-                        </StackPanel>
-                    </Border>
+                                <TextBlock Text="Gas Detected" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,20,0,8" />
+                                <TextBlock FontSize="44" FontWeight="Bold" Margin="0,0,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="FALSE" />
+                                            <Setter Property="Foreground" Value="{StaticResource SuccessBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Gas.GasDetected}" Value="True">
+                                                    <Setter Property="Text" Value="TRUE" />
+                                                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
 
-                    <Border Style="{StaticResource CardBorder}" Margin="0,0,0,0">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="GAS" FontWeight="SemiBold" FontSize="16" />
-                                <TextBlock Text="•" Foreground="{StaticResource MutedTextBrush}" Margin="10,0" />
-                                <TextBlock Text="Safety" Foreground="{StaticResource MutedTextBrush}" />
-                                <TextBlock Text="•" Foreground="{StaticResource MutedTextBrush}" Margin="10,0" />
-                                <TextBlock Text="Device ID: " Foreground="{StaticResource MutedTextBrush}" FontSize="12" />
-                                <TextBlock Text="{Binding Weather.DeviceId, TargetNullValue=-, FallbackValue=-}" Foreground="{StaticResource MutedTextBrush}" FontSize="12" FontWeight="SemiBold" />
+                                <TextBlock Text="Last Updated" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,20,0,6" />
+                                <TextBlock Text="{Binding Gas.ReadingTime, Converter={StaticResource ReadingTimeConverter}}" FontSize="13" />
                             </StackPanel>
+                        </Border>
+                    </UniformGrid>
+                </ScrollViewer>
+            </Grid>
 
-                            <TextBlock Text="GasDetected" Foreground="{StaticResource MutedTextBrush}" Margin="0,16,0,0" />
-                            <TextBlock FontSize="36" FontWeight="SemiBold">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="FALSE" />
-                                        <Setter Property="Foreground" Value="{StaticResource SuccessBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding Gas.GasDetected}" Value="True">
-                                                <Setter Property="Text" Value="TRUE" />
-                                                <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-
-                            <TextBlock Text="ReadingTime" Foreground="{StaticResource MutedTextBrush}" Margin="0,16,0,0" />
-                            <TextBlock Text="{Binding Gas.ReadingTime, Converter={StaticResource ReadingTimeConverter}}" />
-                        </StackPanel>
-                    </Border>
-                </UniformGrid>
-            </ScrollViewer>
-
-            <Border Grid.Column="2" Background="{StaticResource PanelBrush}" CornerRadius="16" Padding="14" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+            <!-- Connected Clients Panel -->
+            <Border Grid.Column="2" Background="{StaticResource PanelBrush}" CornerRadius="16" Padding="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="10" />
+                        <RowDefinition Height="16" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
+
                     <StackPanel>
-                        <TextBlock Text="Logs" FontWeight="SemiBold" FontSize="16" />
-                        <TextBlock Text="Connections / JSON parsing" Foreground="{StaticResource MutedTextBrush}" FontSize="12" />
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Connected Clients" FontWeight="Bold" FontSize="15" />
+                                <TextBlock Text="{Binding ConnectedClients.Count, StringFormat={}Active: {0}}" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </StackPanel>
                     </StackPanel>
-                    <ListBox Grid.Row="2" ItemsSource="{Binding Logs}" />
+
+                    <ListBox Grid.Row="2" ItemsSource="{Binding ConnectedClients}" Padding="8">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="12" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Address}" FontWeight="SemiBold" FontSize="13" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                            <Ellipse Width="8" Height="8" Fill="{StaticResource SuccessBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <TextBlock Text="{Binding ConnectedTime, StringFormat=Connected: {0}}" Foreground="{StaticResource MutedTextBrush}" FontSize="11" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding DeviceId, StringFormat=Device ID: {0}, TargetNullValue='Device ID: -'}" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,6,0,0" FontWeight="SemiBold" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- Logs Panel -->
+            <Border Grid.Column="4" Background="{StaticResource PanelBrush}" CornerRadius="16" Padding="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="16" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Activity Logs" FontWeight="Bold" FontSize="15" />
+                                <TextBlock Text="Real-time events" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <ListBox Grid.Row="2" ItemsSource="{Binding Logs}" Padding="8">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" FontSize="11" TextWrapping="Wrap" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Grid>
             </Border>
         </Grid>
