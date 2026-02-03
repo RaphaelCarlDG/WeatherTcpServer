@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -19,12 +19,11 @@ public sealed class TcpJsonServer : IDisposable
     public bool IsRunning { get; private set; }
 
     public event Action<string>? Log;
-    public event Action<WeatherReading>? WeatherReceived;
-    public event Action<HeatIndexReading>? HeatIndexReceived;
-    public event Action<HydroReading>? HydroReceived;
-    public event Action<GasReading>? GasReceived;
+    public event Action<Weather>? WeatherReceived;
+    public event Action<PerceivedWeather>? HeatIndexReceived;
+    public event Action<Hydro>? HydroReceived;
+    public event Action<Gas>? GasReceived;
 
-    // ?? Known prefixes, matching the Python script's line.startsWith() checks ??
     private const string PrefixWater = "water_level:";
     private const string PrefixMq2 = "mq2:";
     private const string PrefixBme = "bme280:";
@@ -174,9 +173,9 @@ public sealed class TcpJsonServer : IDisposable
     /// <summary>
     /// Routes a prefixed line to the correct handler, mirroring the Python
     /// script's if/elif chain exactly:
-    ///   water_level:{...}  ?  HydroReceived
-    ///   mq2:{...}          ?  GasReceived
-    ///   bme280:{...}       ?  WeatherReceived  +  (optionally) HeatIndexReceived
+    ///   water_level:{...}  →  HydroReceived
+    ///   mq2:{...}          →  GasReceived
+    ///   bme280:{...}       →  WeatherReceived  +  (optionally) HeatIndexReceived
     /// </summary>
     private void TryProcessLine(string line, string clientAddress)
     {
@@ -184,13 +183,13 @@ public sealed class TcpJsonServer : IDisposable
         {
             string? json;
 
-            // ?? water_level ??????????????????????????????????????????????????
+            // water_level
             if ((json = StripPrefix(line, PrefixWater)) is not null)
             {
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
-                var reading = new HydroReading
+                var reading = new Hydro
                 {
                     DeviceId = (int)root.GetProperty("DeviceId").GetInt64(),
                     WaterLevel = (int)root.GetProperty("WaterLevel").GetInt64()
@@ -201,13 +200,13 @@ public sealed class TcpJsonServer : IDisposable
                 return;
             }
 
-            // ?? mq2 ??????????????????????????????????????????????????????????
+            // mq2
             if ((json = StripPrefix(line, PrefixMq2)) is not null)
             {
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
-                var reading = new GasReading
+                var reading = new Gas
                 {
                     DeviceId = (int)root.GetProperty("DeviceId").GetInt64(),
                     GasDetected = root.GetProperty("GasDetected").GetBoolean()
@@ -218,7 +217,7 @@ public sealed class TcpJsonServer : IDisposable
                 return;
             }
 
-            // ?? bme280 ???????????????????????????????????????????????????????
+            // bme280
             // This single payload fans out to WeatherReceived AND, when the
             // optional HeatIndex field is present, also to HeatIndexReceived.
             // This matches exactly what the Python script does inside its
@@ -231,23 +230,23 @@ public sealed class TcpJsonServer : IDisposable
                 int deviceId = (int)root.GetProperty("DeviceId").GetInt64();
 
                 // Always emit the weather reading
-                var weather = new WeatherReading
+                var weather = new Weather
                 {
                     DeviceId = deviceId,
-                    Temperature = root.GetProperty("Temperature").GetDouble(),
-                    Pressure = root.GetProperty("Pressure").GetDouble(),
-                    Humidity = root.GetProperty("Humidity").GetDouble(),
-                    Altitude = root.GetProperty("Altitude").GetDouble(),
-                    DewPoint = root.GetProperty("DewPoint").GetDouble()
+                    Temperature = (decimal)root.GetProperty("Temperature").GetDouble(),
+                    Pressure = (decimal)root.GetProperty("Pressure").GetDouble(),
+                    Humidity = (decimal)root.GetProperty("Humidity").GetDouble(),
+                    Altitude = (decimal)root.GetProperty("Altitude").GetDouble(),
+                    DewPoint = (decimal)root.GetProperty("DewPoint").GetDouble()
                 };
 
-                Log?.Invoke($"Weather reading parsed: Temp={weather.Temperature}�C, DeviceId={weather.DeviceId}");
+                Log?.Invoke($"Weather reading parsed: Temp={weather.Temperature}C, DeviceId={weather.DeviceId}");
                 WeatherReceived?.Invoke(weather);
 
                 // Conditionally emit the heat-index reading (same guard as Python)
                 if (root.TryGetProperty("HeatIndex", out var heatIndexElement))
                 {
-                    var heatIndex = new HeatIndexReading
+                    var heatIndex = new PerceivedWeather
                     {
                         DeviceId = deviceId,
                         HeatIndex = heatIndexElement.GetDouble()
@@ -260,7 +259,6 @@ public sealed class TcpJsonServer : IDisposable
                 return;
             }
 
-            // ?? no recognised prefix ?????????????????????????????????????????
             Log?.Invoke($"Unknown message dropped from {clientAddress}: {line.Substring(0, Math.Min(80, line.Length))}");
         }
         catch (JsonException jsonEx)
@@ -273,7 +271,7 @@ public sealed class TcpJsonServer : IDisposable
         }
         catch (Exception ex)
         {
-            Log?.Invoke($"Processing error from {clientAddress}: {ex.GetType().Name} � {ex.Message}");
+            Log?.Invoke($"Processing error from {clientAddress}: {ex.GetType().Name} - {ex.Message}");
         }
     }
 

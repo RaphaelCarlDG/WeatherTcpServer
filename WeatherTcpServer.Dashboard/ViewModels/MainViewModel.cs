@@ -1,9 +1,10 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 using WeatherTcpServer.Dashboard.Infrastructure;
 using WeatherTcpServer.Dashboard.Models;
 using WeatherTcpServer.Dashboard.Services;
@@ -13,51 +14,87 @@ namespace WeatherTcpServer.Dashboard.ViewModels;
 public sealed class MainViewModel : ObservableObject, IDisposable
 {
     private readonly TcpJsonServer _server = new();
-    private readonly WeatherApiService _apiService;
+    private readonly DbService _dbService;
+    private readonly SignalRService _signalRService;
     private string _ipAddress = "0.0.0.0";
     private int _port = 46800;
     private bool _isRunning;
-    private WeatherReading? _weather;
-    private HeatIndexReading? _heatIndex;
-    private HydroReading? _hydro;
-    private GasReading? _gas;
+    private Weather? _weather;
+    private PerceivedWeather? _heatIndex;
+    private Hydro? _hydro;
+    private Gas? _gas;
     private bool _disposed;
 
     public MainViewModel()
     {
-        _apiService = new WeatherApiService();
+        // Read connection string from appsettings.json
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            .Build();
+
+        string connectionString = configuration.GetConnectionString("AppDb")
+            ?? throw new InvalidOperationException("Connection string 'AppDb' not found in appsettings.json");
+
+        string signalRUrl = configuration["SignalR:HubUrl"]
+            ?? "http://localhost:44363/signalr";
+
+        _dbService = new DbService(connectionString);
+        _signalRService = new SignalRService(signalRUrl);
+
         Logs = new ObservableCollection<string>();
         StartCommand = new RelayCommand(StartServer, () => !IsRunning);
         StopCommand = new RelayCommand(() => _ = StopServerAsync(), () => IsRunning);
 
         _server.Log += msg => AddLog(msg);
+        _signalRService.Log += msg => AddLog(msg);
 
         _server.WeatherReceived += async model =>
         {
             Application.Current.Dispatcher.Invoke(() => Weather = model);
-            await PostWeatherReadingAsync(model);
+            await SaveWeatherReadingAsync(model);
+            await BroadcastWeatherAsync(model);
         };
 
         _server.HeatIndexReceived += async model =>
         {
             Application.Current.Dispatcher.Invoke(() => HeatIndex = model);
-            await PostHeatIndexReadingAsync(model);
+            await SaveHeatIndexReadingAsync(model);
+            await BroadcastHeatIndexAsync(model);
         };
 
         _server.HydroReceived += async model =>
         {
             Application.Current.Dispatcher.Invoke(() => Hydro = model);
-            await PostHydroReadingAsync(model);
+            await SaveHydroReadingAsync(model);
+            await BroadcastHydroAsync(model);
         };
 
         _server.GasReceived += async model =>
         {
             Application.Current.Dispatcher.Invoke(() => Gas = model);
-            await PostGasReadingAsync(model);
+            await SaveGasReadingAsync(model);
+            await BroadcastGasAsync(model);
         };
 
         AddLog("ViewModel initialized");
-        AddLog($"API Base URL: {_apiService.GetType().Name} created");
+        AddLog($"Database service created - using direct DB connection");
+
+        // Start SignalR connection
+        _ = InitializeSignalRAsync();
+    }
+
+    private async Task InitializeSignalRAsync()
+    {
+        try
+        {
+            await _signalRService.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            AddLog($"[WARNING] SignalR connection failed: {ex.Message}");
+            AddLog("[INFO] Application will continue without real-time broadcasting");
+        }
     }
 
     public string IpAddress
@@ -85,25 +122,25 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public WeatherReading? Weather
+    public Weather? Weather
     {
         get => _weather;
         private set => SetProperty(ref _weather, value);
     }
 
-    public HeatIndexReading? HeatIndex
+    public PerceivedWeather? HeatIndex
     {
         get => _heatIndex;
         private set => SetProperty(ref _heatIndex, value);
     }
 
-    public HydroReading? Hydro
+    public Hydro? Hydro
     {
         get => _hydro;
         private set => SetProperty(ref _hydro, value);
     }
 
-    public GasReading? Gas
+    public Gas? Gas
     {
         get => _gas;
         private set => SetProperty(ref _gas, value);
@@ -120,35 +157,35 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             Logs.Insert(0, $"[{DateTime.Now:HH:mm:ss}] {message}"));
     }
 
-    private async Task PostWeatherReadingAsync(WeatherReading reading)
+    private async Task SaveWeatherReadingAsync(Weather reading)
     {
-        AddLog($"[DEBUG] Attempting to post weather reading to API...");
+        AddLog($"[DEBUG] Attempting to save weather reading to database...");
         AddLog($"[DEBUG] Weather data - Temp: {reading.Temperature}, Humidity: {reading.Humidity}, DeviceId: {reading.DeviceId}");
 
         try
         {
-            var success = await _apiService.PostWeatherReadingAsync(reading);
+            var success = await _dbService.SaveWeatherReadingAsync(reading);
             if (success)
             {
-                AddLog($"[OK] Weather reading posted (Temp: {reading.Temperature}°C, Humidity: {reading.Humidity}%)");
+                AddLog($"[OK] Weather reading saved (Temp: {reading.Temperature}°C, Humidity: {reading.Humidity}%)");
             }
             else
             {
-                AddLog("[FAIL] Failed to post weather reading - API returned non-success status");
+                AddLog("[FAIL] Failed to save weather reading - no rows affected");
             }
         }
-        catch (HttpRequestException httpEx)
+        catch (SqlException sqlEx)
         {
-            AddLog($"[ERROR] HTTP error posting weather: {httpEx.Message}");
-            AddLog($"[DEBUG] Status Code: {httpEx.StatusCode}");
+            AddLog($"[ERROR] SQL error saving weather: {sqlEx.Message}");
+            AddLog($"[DEBUG] SQL Error Number: {sqlEx.Number}");
         }
         catch (TaskCanceledException)
         {
-            AddLog($"[ERROR] Request timeout posting weather (>10s)");
+            AddLog($"[ERROR] Request timeout saving weather");
         }
         catch (Exception ex)
         {
-            AddLog($"[ERROR] Error posting weather: {ex.GetType().Name} - {ex.Message}");
+            AddLog($"[ERROR] Error saving weather: {ex.GetType().Name} - {ex.Message}");
             if (ex.InnerException != null)
             {
                 AddLog($"[DEBUG] Inner exception: {ex.InnerException.Message}");
@@ -156,35 +193,51 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task PostHeatIndexReadingAsync(HeatIndexReading reading)
+    private async Task BroadcastWeatherAsync(Weather reading)
     {
-        AddLog($"[DEBUG] Attempting to post heat index reading to API...");
+        try
+        {
+            if (_signalRService.IsConnected)
+            {
+                await _signalRService.BroadcastWeatherAsync(reading);
+                AddLog($"[SignalR] Weather data broadcasted");
+            }
+        }
+        catch (Exception ex)
+        {
+            AddLog($"[SignalR] Broadcast error: {ex.Message}");
+        }
+    }
+
+    private async Task SaveHeatIndexReadingAsync(PerceivedWeather reading)
+    {
+        AddLog($"[DEBUG] Attempting to save heat index reading to database...");
         AddLog($"[DEBUG] Heat index data - Value: {reading.HeatIndex}, DeviceId: {reading.DeviceId}");
 
         try
         {
-            var success = await _apiService.PostHeatIndexReadingAsync(reading);
+            var success = await _dbService.SaveHeatIndexReadingAsync(reading);
             if (success)
             {
-                AddLog($"[OK] Heat index reading posted (Value: {reading.HeatIndex}°C)");
+                AddLog($"[OK] Heat index reading saved (Value: {reading.HeatIndex}°C)");
             }
             else
             {
-                AddLog("[FAIL] Failed to post heat index reading - API returned non-success status");
+                AddLog("[FAIL] Failed to save heat index reading - no rows affected");
             }
         }
-        catch (HttpRequestException httpEx)
+        catch (SqlException sqlEx)
         {
-            AddLog($"[ERROR] HTTP error posting heat index: {httpEx.Message}");
-            AddLog($"[DEBUG] Status Code: {httpEx.StatusCode}");
+            AddLog($"[ERROR] SQL error saving heat index: {sqlEx.Message}");
+            AddLog($"[DEBUG] SQL Error Number: {sqlEx.Number}");
         }
         catch (TaskCanceledException)
         {
-            AddLog($"[ERROR] Request timeout posting heat index (>10s)");
+            AddLog($"[ERROR] Request timeout saving heat index");
         }
         catch (Exception ex)
         {
-            AddLog($"[ERROR] Error posting heat index: {ex.GetType().Name} - {ex.Message}");
+            AddLog($"[ERROR] Error saving heat index: {ex.GetType().Name} - {ex.Message}");
             if (ex.InnerException != null)
             {
                 AddLog($"[DEBUG] Inner exception: {ex.InnerException.Message}");
@@ -192,35 +245,51 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task PostHydroReadingAsync(HydroReading reading)
+    private async Task BroadcastHeatIndexAsync(PerceivedWeather reading)
     {
-        AddLog($"[DEBUG] Attempting to post hydro reading to API...");
+        try
+        {
+            if (_signalRService.IsConnected)
+            {
+                await _signalRService.BroadcastHeatIndexAsync(reading);
+                AddLog($"[SignalR] Heat index data broadcasted");
+            }
+        }
+        catch (Exception ex)
+        {
+            AddLog($"[SignalR] Broadcast error: {ex.Message}");
+        }
+    }
+
+    private async Task SaveHydroReadingAsync(Hydro reading)
+    {
+        AddLog($"[DEBUG] Attempting to save hydro reading to database...");
         AddLog($"[DEBUG] Hydro data - WaterLevel: {reading.WaterLevel}, DeviceId: {reading.DeviceId}");
 
         try
         {
-            var success = await _apiService.PostHydroReadingAsync(reading);
+            var success = await _dbService.SaveHydroReadingAsync(reading);
             if (success)
             {
-                AddLog($"[OK] Hydro reading posted (WaterLevel: {reading.WaterLevel} hPa)");
+                AddLog($"[OK] Hydro reading saved (WaterLevel: {reading.WaterLevel} hPa)");
             }
             else
             {
-                AddLog("[FAIL] Failed to post hydro reading - API returned non-success status");
+                AddLog("[FAIL] Failed to save hydro reading - no rows affected");
             }
         }
-        catch (HttpRequestException httpEx)
+        catch (SqlException sqlEx)
         {
-            AddLog($"[ERROR] HTTP error posting hydro: {httpEx.Message}");
-            AddLog($"[DEBUG] Status Code: {httpEx.StatusCode}");
+            AddLog($"[ERROR] SQL error saving hydro: {sqlEx.Message}");
+            AddLog($"[DEBUG] SQL Error Number: {sqlEx.Number}");
         }
         catch (TaskCanceledException)
         {
-            AddLog($"[ERROR] Request timeout posting hydro (>10s)");
+            AddLog($"[ERROR] Request timeout saving hydro");
         }
         catch (Exception ex)
         {
-            AddLog($"[ERROR] Error posting hydro: {ex.GetType().Name} - {ex.Message}");
+            AddLog($"[ERROR] Error saving hydro: {ex.GetType().Name} - {ex.Message}");
             if (ex.InnerException != null)
             {
                 AddLog($"[DEBUG] Inner exception: {ex.InnerException.Message}");
@@ -228,45 +297,78 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task PostGasReadingAsync(GasReading reading)
+    private async Task BroadcastHydroAsync(Hydro reading)
     {
-        AddLog($"[DEBUG] Attempting to post gas reading to API...");
+        try
+        {
+            if (_signalRService.IsConnected)
+            {
+                await _signalRService.BroadcastHydroAsync(reading);
+                AddLog($"[SignalR] Hydro data broadcasted");
+            }
+        }
+        catch (Exception ex)
+        {
+            AddLog($"[SignalR] Broadcast error: {ex.Message}");
+        }
+    }
+
+    private async Task SaveGasReadingAsync(Gas reading)
+    {
+        AddLog($"[DEBUG] Attempting to save gas reading to database...");
         AddLog($"[DEBUG] Gas data - GasDetected: {reading.GasDetected}, DeviceId: {reading.DeviceId}");
 
         try
         {
-            var success = await _apiService.PostGasReadingAsync(reading);
+            var success = await _dbService.SaveGasReadingAsync(reading);
             if (success)
             {
-                AddLog($"[OK] Gas reading posted (GasDetected: {reading.GasDetected})");
+                AddLog($"[OK] Gas reading saved (GasDetected: {reading.GasDetected})");
             }
             else
             {
-                AddLog("[FAIL] Failed to post gas reading - API returned non-success status");
+                AddLog("[FAIL] Failed to save gas reading - no rows affected");
             }
         }
-        catch (HttpRequestException httpEx)
+        catch (SqlException sqlEx)
         {
-            AddLog($"[ERROR] HTTP error posting gas: {httpEx.Message}");
-            AddLog($"[DEBUG] Status Code: {httpEx.StatusCode}");
+            AddLog($"[ERROR] SQL error saving gas: {sqlEx.Message}");
+            AddLog($"[DEBUG] SQL Error Number: {sqlEx.Number}");
         }
         catch (TaskCanceledException)
         {
-            AddLog($"[ERROR] Request timeout posting gas (>10s)");
+            AddLog($"[ERROR] Request timeout saving gas");
         }
         catch (Exception ex)
         {
-            AddLog($"[ERROR] Error posting gas: {ex.GetType().Name} - {ex.Message}");
+            AddLog($"[ERROR] Error saving gas: {ex.GetType().Name} - {ex.Message}");
             if (ex.InnerException != null)
             {
                 AddLog($"[DEBUG] Inner exception: {ex.InnerException.Message}");
             }
+        }
+    }
+
+    private async Task BroadcastGasAsync(Gas reading)
+    {
+        try
+        {
+            if (_signalRService.IsConnected)
+            {
+                await _signalRService.BroadcastGasAsync(reading);
+                AddLog($"[SignalR] Gas data broadcasted");
+            }
+        }
+        catch (Exception ex)
+        {
+            AddLog($"[SignalR] Broadcast error: {ex.Message}");
         }
     }
 
     public async Task ShutdownAsync()
     {
         await StopServerAsync().ConfigureAwait(false);
+        await _signalRService.StopAsync().ConfigureAwait(false);
     }
 
     private void StartServer()
@@ -317,7 +419,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (!_disposed)
         {
-            _apiService?.Dispose();
+            _dbService?.Dispose();
+            _signalRService?.Dispose();
             _disposed = true;
             AddLog("[DEBUG] ViewModel disposed");
         }

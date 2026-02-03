@@ -1,21 +1,23 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
-using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace WeatherTcpServer.Dashboard.Models
 {
     public abstract class ReadingBase
     {
-        [JsonIgnore]  // Don't serialize to JSON when POSTing
+        [Key]
+        [Column("id")]
         public int Id { get; set; }
 
         [Required]
+        [Column("device_id")]
         public int DeviceId { get; set; }
 
-        [JsonIgnore]  // Don't serialize to JSON when POSTing
+        [ForeignKey("DeviceId")]
         public virtual Device? Device { get; set; }
 
-        [JsonIgnore]  // Don't serialize to JSON when POSTing
-        public DateTime ReadingTime { get; set; }
+        [Column("reading_time")]
+        public DateTime ReadingTime { get; set; } = DateTime.Now;
     }
 }
