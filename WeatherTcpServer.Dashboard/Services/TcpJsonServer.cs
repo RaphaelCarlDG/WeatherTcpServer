@@ -25,10 +25,6 @@ public sealed class TcpJsonServer : IDisposable
     public event Action<PerceivedWeather>? HeatIndexReceived;
     public event Action<Hydro>? HydroReceived;
     public event Action<Gas>? GasReceived;
-    public event Action<WeatherReading>? WeatherReceived;
-    public event Action<HeatIndexReading>? HeatIndexReceived;
-    public event Action<HydroReading>? HydroReceived;
-    public event Action<GasReading>? GasReceived;
     public event Action? ClientsChanged;
 
     private const string PrefixWater = "water_level:";

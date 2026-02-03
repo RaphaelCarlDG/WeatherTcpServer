@@ -19,10 +19,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string _ipAddress = "0.0.0.0";
     private int _port = 46800;
     private bool _isRunning;
-    private WeatherReading? _weather;
-    private HeatIndexReading? _heatIndex;
-    private HydroReading? _hydro;
-    private GasReading? _gas;
     private int? _selectedDeviceId;
     private Weather? _weather;
     private PerceivedWeather? _heatIndex;
@@ -71,7 +67,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                     }
                 });
             }
-            await PostWeatherReadingAsync(model);
             Application.Current.Dispatcher.Invoke(() => Weather = model);
             await SaveWeatherReadingAsync(model);
             await BroadcastWeatherAsync(model);
@@ -91,7 +86,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                     }
                 });
             }
-            await PostHeatIndexReadingAsync(model);
             Application.Current.Dispatcher.Invoke(() => HeatIndex = model);
             await SaveHeatIndexReadingAsync(model);
             await BroadcastHeatIndexAsync(model);
@@ -111,7 +105,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                     }
                 });
             }
-            await PostHydroReadingAsync(model);
             Application.Current.Dispatcher.Invoke(() => Hydro = model);
             await SaveHydroReadingAsync(model);
             await BroadcastHydroAsync(model);
@@ -131,7 +124,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                     }
                 });
             }
-            await PostGasReadingAsync(model);
             Application.Current.Dispatcher.Invoke(() => Gas = model);
             await SaveGasReadingAsync(model);
             await BroadcastGasAsync(model);
