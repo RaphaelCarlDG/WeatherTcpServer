@@ -22,7 +22,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private HydroReading? _hydro;
     private GasReading? _gas;
     private int? _selectedDeviceId;
-    private bool _isDarkMode = false;
     private bool _disposed;
 
     public MainViewModel()
@@ -170,12 +169,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         get => _selectedDeviceId;
         set => SetProperty(ref _selectedDeviceId, value);
-    }
-
-    public bool IsDarkMode
-    {
-        get => _isDarkMode;
-        set => SetProperty(ref _isDarkMode, value);
     }
 
     public ObservableCollection<string> Logs { get; }

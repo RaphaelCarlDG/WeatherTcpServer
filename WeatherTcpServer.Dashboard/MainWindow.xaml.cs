@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel;
 using System.Windows;
-using WeatherTcpServer.Dashboard.Services;
 using WeatherTcpServer.Dashboard.ViewModels;
 
 namespace WeatherTcpServer.Dashboard;
@@ -18,14 +17,6 @@ public partial class MainWindow : Window
 
         _vm = new MainViewModel();
         DataContext = _vm;
-        
-        _vm.PropertyChanged += (s, e) =>
-        {
-            if (e.PropertyName == nameof(MainViewModel.IsDarkMode))
-            {
-                ThemeManager.ApplyTheme(_vm.IsDarkMode);
-            }
-        };
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)

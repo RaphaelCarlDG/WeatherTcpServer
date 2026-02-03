@@ -20,7 +20,7 @@
 
         <!-- Header -->
         <StackPanel Grid.Row="0">
-            <TextBlock Text="⚙️ Settings" FontSize="24" FontWeight="Bold" />
+            <TextBlock Text="Settings" FontSize="24" FontWeight="Bold" />
             <TextBlock Text="Configure server and appearance" Foreground="{StaticResource MutedTextBrush}" FontSize="13" Margin="0,4,0,0" />
         </StackPanel>
 
@@ -31,7 +31,6 @@
                 <Border Background="{StaticResource PanelBrush}" CornerRadius="12" Padding="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Margin="0,0,0,20">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                            <TextBlock Text="🌐" FontSize="18" Margin="0,0,8,0" />
                             <TextBlock Text="TCP Server Configuration" FontWeight="Bold" FontSize="16" VerticalAlignment="Center" />
                         </StackPanel>
 
@@ -60,54 +59,11 @@
                             </StackPanel>
 
                             <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal">
-                                <Button Content="▶ Start Server" Width="120" Padding="12,10" Command="{Binding StartCommand}" Margin="0,0,12,0" />
-                                <Button Content="⏹ Stop Server" Width="120" Padding="12,10" Style="{StaticResource DangerButton}" Command="{Binding StopCommand}" />
+                                <Button Content="Start Server" Width="120" Padding="12,10" Command="{Binding StartCommand}" Margin="0,0,12,0" />
+                                <Button Content="Stop Server" Width="120" Padding="12,10" Style="{StaticResource DangerButton}" Command="{Binding StopCommand}" />
                             </StackPanel>
 
-                            <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Text="💡 Tip: Send 1 JSON per line (newline-delimited)" Foreground="{StaticResource MutedTextBrush}" FontSize="11" />
-                        </Grid>
-                    </StackPanel>
-                </Border>
-
-                <!-- Appearance Settings -->
-                <Border Background="{StaticResource PanelBrush}" CornerRadius="12" Padding="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                            <TextBlock Text="🎨" FontSize="18" Margin="0,0,8,0" />
-                            <TextBlock Text="Appearance" FontWeight="Bold" FontSize="16" VerticalAlignment="Center" />
-                        </StackPanel>
-
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="Theme" FontWeight="SemiBold" FontSize="14" />
-                                <TextBlock Text="Switch between light and dark mode" Foreground="{StaticResource MutedTextBrush}" FontSize="12" Margin="0,4,0,0" />
-                            </StackPanel>
-
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="☀️" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                <ToggleButton Width="50" Height="28" Padding="3" IsChecked="{Binding IsDarkMode}">
-                                    <ToggleButton.Template>
-                                        <ControlTemplate TargetType="ToggleButton">
-                                            <Border Background="{StaticResource BorderBrush}" CornerRadius="14" Padding="3">
-                                                <Grid>
-                                                    <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="{StaticResource PanelBrush}" HorizontalAlignment="Left" />
-                                                </Grid>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsChecked" Value="True">
-                                                    <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right" />
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </ToggleButton.Template>
-                                </ToggleButton>
-                                <TextBlock Text="🌙" FontSize="16" VerticalAlignment="Center" Margin="8,0,0,0" />
-                            </StackPanel>
+                            <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Text="Tip: Send 1 JSON per line (newline-delimited)" Foreground="{StaticResource MutedTextBrush}" FontSize="11" />
                         </Grid>
                     </StackPanel>
                 </Border>
