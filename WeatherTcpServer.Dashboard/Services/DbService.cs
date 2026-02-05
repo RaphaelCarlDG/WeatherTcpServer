@@ -127,6 +127,54 @@ namespace WeatherTcpServer.Dashboard.Services
         #endregion
 
         #region Device Methods
+        public async Task<Device?> CreateDeviceAsync(Device device)
+        {
+            Console.WriteLine($"[DbService] Creating Device - Name: {device.Name}");
+
+            try
+            {
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                using var command = new SqlCommand(@"
+            INSERT INTO devices (name, latitude, longitude, created_at) 
+            OUTPUT INSERTED.id, INSERTED.name, INSERTED.latitude, INSERTED.longitude, INSERTED.created_at
+            VALUES (@Name, @Latitude, @Longitude, @CreatedAt)",
+                    connection);
+
+                command.Parameters.AddWithValue("@Name", device.Name ?? (object)DBNull.Value);
+                command.Parameters.AddWithValue("@Latitude", device.Latitude.HasValue ? (object)device.Latitude.Value : DBNull.Value);
+                command.Parameters.AddWithValue("@Longitude", device.Longitude.HasValue ? (object)device.Longitude.Value : DBNull.Value);
+                command.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
+
+                using var reader = await command.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    var createdDevice = new Device
+                    {
+                        Id = reader.GetInt32(0),
+                        Name = reader.GetString(1),
+                        Latitude = reader.IsDBNull(2) ? null : reader.GetDecimal(2),
+                        Longitude = reader.IsDBNull(3) ? null : reader.GetDecimal(3),
+                        CreatedAt = reader.GetDateTime(4)
+                    };
+
+                    Console.WriteLine($"[DbService] Device created successfully. Device ID: {createdDevice.Id}");
+                    return createdDevice;
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DbService] Error creating device: {ex.GetType().Name} - {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"[DbService] Inner exception: {ex.InnerException.Message}");
+                }
+                throw;
+            }
+        }
 
         public async Task<List<Device>> GetAllDevicesAsync()
         {
@@ -179,6 +227,43 @@ namespace WeatherTcpServer.Dashboard.Services
             }
 
             return null;
+        }
+
+        public async Task<bool> UpdateDeviceAsync(Device device)
+        {
+            Console.WriteLine($"[DbService] Updating Device - Id: {device.Id}, Name: {device.Name}");
+
+            try
+            {
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                using var command = new SqlCommand(@"
+                    UPDATE devices 
+                    SET name = @Name, 
+                        latitude = @Latitude, 
+                        longitude = @Longitude 
+                    WHERE id = @Id",
+                    connection);
+
+                command.Parameters.AddWithValue("@Id", device.Id);
+                command.Parameters.AddWithValue("@Name", device.Name ?? (object)DBNull.Value);
+                command.Parameters.AddWithValue("@Latitude", device.Latitude.HasValue ? (object)device.Latitude.Value : DBNull.Value);
+                command.Parameters.AddWithValue("@Longitude", device.Longitude.HasValue ? (object)device.Longitude.Value : DBNull.Value);
+
+                var rowsAffected = await command.ExecuteNonQueryAsync();
+                Console.WriteLine($"[DbService] Device updated successfully. Rows affected: {rowsAffected}");
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DbService] Error updating device: {ex.GetType().Name} - {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"[DbService] Inner exception: {ex.InnerException.Message}");
+                }
+                throw;
+            }
         }
 
         #endregion

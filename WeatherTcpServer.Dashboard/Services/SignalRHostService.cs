@@ -77,6 +77,60 @@ namespace WeatherTcpServer.Dashboard.Services
                     return device != null ? Results.Json(device) : Results.NotFound();
                 });
 
+                // Create new device
+                app.MapPost("/api/devices", async (Device device, DbService db) =>
+                {
+                    try
+                    {
+                        // Validate required fields
+                        if (string.IsNullOrWhiteSpace(device.Name))
+                        {
+                            return Results.BadRequest(new { message = "Device name is required" });
+                        }
+
+                        if (device.Name.Length > 100)
+                        {
+                            return Results.BadRequest(new { message = "Device name cannot exceed 100 characters" });
+                        }
+
+                        // Validate latitude
+                        if (device.Latitude.HasValue && (device.Latitude.Value < -90 || device.Latitude.Value > 90))
+                        {
+                            return Results.BadRequest(new { message = "Latitude must be between -90 and 90" });
+                        }
+
+                        // Validate longitude
+                        if (device.Longitude.HasValue && (device.Longitude.Value < -180 || device.Longitude.Value > 180))
+                        {
+                            return Results.BadRequest(new { message = "Longitude must be between -180 and 180" });
+                        }
+
+                        var createdDevice = await db.CreateDeviceAsync(device);
+
+                        if (createdDevice != null)
+                        {
+                            return Results.Created($"/api/devices/{createdDevice.Id}", createdDevice);
+                        }
+
+                        return Results.Problem("Failed to create device");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[API] Error creating device: {ex.Message}");
+                        return Results.Problem($"Error creating device: {ex.Message}");
+                    }
+                });
+
+                // Update device
+                app.MapPut("/api/devices/{id:int}", async (int id, Device device, DbService db) =>
+                {
+                    if (id != device.Id)
+                        return Results.BadRequest("Device ID mismatch");
+
+                    var success = await db.UpdateDeviceAsync(device);
+                    return success ? Results.Ok(device) : Results.NotFound();
+                });
+
                 // Get hydro readings for device
                 app.MapGet("/api/hydro/device/{deviceId:int}", async (int deviceId, DbService db) =>
                 {
