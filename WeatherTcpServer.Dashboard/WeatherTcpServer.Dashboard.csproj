@@ -17,13 +17,13 @@
 		<!-- Entity Framework Core for database access -->
 		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.0" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.0">
-			<PrivateAssets>all</PrivateAssets>
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.0" />
 
 		<!-- Configuration to read appsettings.json -->
 		<PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0" />
+
+		<!-- ASP.NET Core for hosting SignalR hub -->
+		<PackageReference Include="Microsoft.AspNetCore.App" />
 	</ItemGroup>
 </Project>

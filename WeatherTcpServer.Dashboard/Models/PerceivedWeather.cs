@@ -6,6 +6,6 @@ namespace WeatherTcpServer.Dashboard.Models
     public sealed class PerceivedWeather : ReadingBase
     {
         [Column("heat_index")]
-        public double? HeatIndex { get; set; }
+        public decimal? HeatIndex { get; set; }
     }
 }

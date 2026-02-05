@@ -15,7 +15,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 {
     private readonly TcpJsonServer _server = new();
     private readonly DbService _dbService;
-    private readonly SignalRService _signalRService;
+    private readonly SignalRHostService _signalRHost;
     private string _ipAddress = "0.0.0.0";
     private int _port = 46800;
     private bool _isRunning;
@@ -38,10 +38,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             ?? throw new InvalidOperationException("Connection string 'AppDb' not found in appsettings.json");
 
         string signalRUrl = configuration["SignalR:HubUrl"]
-            ?? "http://localhost:44363/signalr";
+            ?? "http://localhost:5000";
 
         _dbService = new DbService(connectionString);
-        _signalRService = new SignalRService(signalRUrl);
+        _signalRHost = new SignalRHostService(signalRUrl, _dbService);
 
         Logs = new ObservableCollection<string>();
         ConnectedClients = new ObservableCollection<ClientDisplay>();
@@ -51,7 +51,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _server.Log += msg => AddLog(msg);
         _server.ClientsChanged += () => UpdateClientsList();
-        _signalRService.Log += msg => AddLog(msg);
+        _signalRHost.Log += msg => AddLog(msg);
 
         _server.WeatherReceived += async model =>
         {
@@ -67,7 +67,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                     }
                 });
             }
-            Application.Current.Dispatcher.Invoke(() => Weather = model);
             await SaveWeatherReadingAsync(model);
             await BroadcastWeatherAsync(model);
         };
@@ -86,7 +85,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                     }
                 });
             }
-            Application.Current.Dispatcher.Invoke(() => HeatIndex = model);
             await SaveHeatIndexReadingAsync(model);
             await BroadcastHeatIndexAsync(model);
         };
@@ -105,7 +103,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                     }
                 });
             }
-            Application.Current.Dispatcher.Invoke(() => Hydro = model);
             await SaveHydroReadingAsync(model);
             await BroadcastHydroAsync(model);
         };
@@ -124,7 +121,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                     }
                 });
             }
-            Application.Current.Dispatcher.Invoke(() => Gas = model);
             await SaveGasReadingAsync(model);
             await BroadcastGasAsync(model);
         };
@@ -132,7 +128,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         AddLog("ViewModel initialized");
         AddLog($"Database service created - using direct DB connection");
 
-        // Start SignalR connection
+        // Start SignalR hub
         _ = InitializeSignalRAsync();
     }
 
@@ -148,11 +144,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            await _signalRService.StartAsync();
+            await _signalRHost.StartAsync();
         }
         catch (Exception ex)
         {
-            AddLog($"[WARNING] SignalR connection failed: {ex.Message}");
+            AddLog($"[WARNING] SignalR hub failed to start: {ex.Message}");
             AddLog("[INFO] Application will continue without real-time broadcasting");
         }
     }
@@ -299,9 +295,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            if (_signalRService.IsConnected)
+            if (_signalRHost.IsRunning)
             {
-                await _signalRService.BroadcastWeatherAsync(reading);
+                await _signalRHost.BroadcastWeatherAsync(reading);
                 AddLog($"[SignalR] Weather data broadcasted");
             }
         }
@@ -351,9 +347,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            if (_signalRService.IsConnected)
+            if (_signalRHost.IsRunning)
             {
-                await _signalRService.BroadcastHeatIndexAsync(reading);
+                await _signalRHost.BroadcastHeatIndexAsync(reading);
                 AddLog($"[SignalR] Heat index data broadcasted");
             }
         }
@@ -403,9 +399,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            if (_signalRService.IsConnected)
+            if (_signalRHost.IsRunning)
             {
-                await _signalRService.BroadcastHydroAsync(reading);
+                await _signalRHost.BroadcastHydroAsync(reading);
                 AddLog($"[SignalR] Hydro data broadcasted");
             }
         }
@@ -455,9 +451,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            if (_signalRService.IsConnected)
+            if (_signalRHost.IsRunning)
             {
-                await _signalRService.BroadcastGasAsync(reading);
+                await _signalRHost.BroadcastGasAsync(reading);
                 AddLog($"[SignalR] Gas data broadcasted");
             }
         }
@@ -470,7 +466,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public async Task ShutdownAsync()
     {
         await StopServerAsync().ConfigureAwait(false);
-        await _signalRService.StopAsync().ConfigureAwait(false);
+        await _signalRHost.StopAsync().ConfigureAwait(false);
     }
 
     private void StartServer()
@@ -530,7 +526,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (!_disposed)
         {
             _dbService?.Dispose();
-            _signalRService?.Dispose();
+            _signalRHost?.Dispose();
             _disposed = true;
             AddLog("[DEBUG] ViewModel disposed");
         }

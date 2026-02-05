@@ -302,7 +302,7 @@ public sealed class TcpJsonServer : IDisposable
                     var heatIndex = new PerceivedWeather
                     {
                         DeviceId = deviceId,
-                        HeatIndex = heatIndexElement.GetDouble()
+                        HeatIndex = heatIndexElement.GetDecimal()
                     };
 
                     Log?.Invoke($"HeatIndex reading parsed: Value={heatIndex.HeatIndex}, DeviceId={heatIndex.DeviceId}");
